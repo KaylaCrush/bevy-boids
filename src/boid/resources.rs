@@ -1,6 +1,12 @@
 use bevy::prelude::*;
 
 #[derive(Resource)]
+pub struct SpatialHashGrid {
+    pub cells: std::collections::HashMap<(i32, i32), Vec<Entity>>,
+    pub cell_size: f32,
+}
+
+#[derive(Resource)]
 pub struct CursorWorldPosition(pub Vec2);
 
 #[derive(Resource)]
