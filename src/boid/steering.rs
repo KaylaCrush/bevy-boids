@@ -15,28 +15,43 @@ pub fn boid_behavior(
     for(this_boid, transform, velocity, mut acceleration) in query.iter_mut() {
         let pos = transform.translation;
         let vel = velocity.0;
-        let boid_data = get_neighbors_in_grid(pos, &grid);
-        let sep = reynolds(separation(&this_boid, &pos, &boid_data, behavior_settings.separation_distance), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.separation;
-        let ali = reynolds(alignment(&this_boid, &pos, &boid_data, behavior_settings.neighbor_distance), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.alignment;
-        let coh = reynolds(cohesion(&this_boid, &pos, &boid_data, behavior_settings.neighbor_distance), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.cohesion;
-        let edges = reynolds(avoid_edges(&pos, &window.width(), &window.height(), 25.0), vel, move_settings.max_speed, move_settings.max_force) * 2.0;
-        let pointer = reynolds(avoid_pointer(pos, pointer_pos.0), vel, move_settings.max_speed, move_settings.max_force) * 5.0;
-        acceleration.0 = sep + ali + coh;// + edges + pointer;
+        let boid_data = get_neighbors_in_grid(&pos, &grid);
+        let sep = reynolds(separation(&this_boid, &pos, &boid_data, behavior_settings.separation_distance, window), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.separation;
+        let ali = reynolds(alignment(&this_boid, &pos, &boid_data, behavior_settings.neighbor_distance, window), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.alignment;
+        let coh = reynolds(cohesion(&this_boid, &pos, &boid_data, behavior_settings.neighbor_distance, window), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.cohesion;
+        let edges = reynolds(avoid_edges(&pos, &window, 25.0), vel, move_settings.max_speed, move_settings.max_force) * 2.0;
+        let pointer = reynolds(avoid_pointer(&pos, &pointer_pos.0, &window), vel, move_settings.max_speed, move_settings.max_force) * 5.0;
+        acceleration.0 = sep + ali + coh + pointer;
     }
 }
 
+fn toroidal_delta(a: Vec3, b: Vec3, width: f32, height: f32) -> Vec3 {
+    let mut dx = b.x - a.x;
+    let mut dy = b.y - a.y;
+
+    if dx.abs() > width / 2.0 {
+        dx -= width * dx.signum();
+    }
+    if dy.abs() > height / 2.0 {
+        dy -= height * dy.signum();
+    }
+
+    Vec3::new(dx, dy, 0.0)
+}
+
 fn avoid_pointer(
-    pos: Vec3,
-    pointer_pos: Vec2,
+    pos: &Vec3,
+    pointer_pos: &Vec2,
+    window: &Window,
 ) -> Vec3 {
     let avoid_radius = 100.0;
     let max_force = 150.0;
 
-    let to_pointer = pointer_pos.extend(0.0) - pos;
-    let dist = to_pointer.length();
+    let delta = toroidal_delta(*pos,pointer_pos.extend(0.0), window.width(), window.height());
+    let dist = delta.length();
 
     if dist < avoid_radius && dist > 0.0 {
-        let away = -to_pointer.normalize();
+        let away = -delta.normalize();
         let strength = ((avoid_radius - dist) / avoid_radius).powi(2); // smooth falloff
         away * max_force * strength
     } else {
@@ -47,14 +62,13 @@ fn avoid_pointer(
 
 fn avoid_edges(
     pos: &Vec3,
-    screen_width: &f32,
-    screen_height: &f32,
+    window: &Window,
     avoid_distance: f32,
 ) -> Vec3 {
     let mut force = Vec3::ZERO;
 
-    let half_width = screen_width / 2.0;
-    let half_height = screen_height / 2.0;
+    let half_width = window.width() / 2.0;
+    let half_height = window.height() / 2.0;
 
     // Left edge
     let dist_left = pos.x + half_width;
@@ -85,7 +99,7 @@ fn avoid_edges(
 
 
 fn get_neighbors_in_grid(
-    pos: Vec3,
+    pos: &Vec3,
     grid: &SpatialHashGrid,
 ) -> Vec<(Entity, Vec3, Vec3)> {
     let boid_cell = (
@@ -130,12 +144,14 @@ fn separation(
     this_pos: &Vec3,
     boid_data: &[(Entity, Vec3, Vec3)],
     separation_distance: f32,
+    window: &Window,
 ) -> Vec3 {
     let mut steer = Vec3::ZERO;
     let mut count = 0;
     for (other_boid, other_pos, _ ) in boid_data.iter(){
         if this_boid == other_boid { continue; }
-        let distance = this_pos.distance(*other_pos);
+        let delta = toroidal_delta(*this_pos, *other_pos, window.width(), window.height());
+        let distance = delta.length();
         if distance > 0.0 && distance < separation_distance {
             let diff = (this_pos - other_pos).normalize()/distance;
             steer += diff;
@@ -153,12 +169,14 @@ fn alignment(
     this_pos: &Vec3,
     boid_data: &[(Entity, Vec3, Vec3)],
     neighbor_distance: f32,
+    window: &Window,
 ) -> Vec3 {
     let mut steer = Vec3::ZERO;
     let mut count = 0;
     for (other_boid, other_pos, other_vel) in boid_data.iter() {
         if this_boid == other_boid { continue; }
-        let distance = this_pos.distance(*other_pos);
+        let delta = toroidal_delta(*this_pos, *other_pos, window.width(), window.height());
+        let distance = delta.length();
         if distance > 0.0 && distance < neighbor_distance {
             steer = steer + other_vel;
             count = count + 1;
@@ -175,12 +193,14 @@ fn cohesion(
     this_pos: &Vec3,
     boid_data: &[(Entity, Vec3, Vec3)],
     neighbor_distance: f32,
+    window: &Window,
 ) -> Vec3 {
     let mut steer = Vec3::ZERO;
     let mut count = 0;
     for (other_boid, other_pos, _) in boid_data.iter() {
         if this_boid == other_boid { continue; }
-        let distance = this_pos.distance(*other_pos);
+        let delta = toroidal_delta(*this_pos, *other_pos, window.width(), window.height());
+        let distance = delta.length();
         if distance > 0.0 && distance < neighbor_distance {
             steer = steer + other_pos;
             count = count + 1;
