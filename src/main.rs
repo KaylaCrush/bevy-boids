@@ -5,16 +5,23 @@ use boid::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_systems(Startup, (setup, spawn_boids.after(setup)))
-        .add_systems(Update, (
-            update_cursor_position,
-        ))
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resolution: (1280.0, 720.0).into(), // <-- Set your width and height here
+                title: "Boid Garden".to_string(),
+                ..default()
+            }),
+            ..default()
+        }))
+        .add_systems(Startup, (setup, setup_grid.after(setup), spawn_boids.after(setup)))
+        .add_systems(Update, (update_cursor_position,))
         .add_systems(FixedUpdate, (
-            boid_behavior,
+            update_spatial_grid,
+            boid_behavior.after(update_spatial_grid),
             apply_forces.after(boid_behavior),
-            update_positions.after(apply_forces),
-            screen_wrap.after(update_positions),
+
+            screen_wrap,
+            update_positions.after(screen_wrap),
         ))
         .run();
 }
