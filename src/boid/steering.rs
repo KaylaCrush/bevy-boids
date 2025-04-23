@@ -19,9 +19,9 @@ pub fn boid_behavior(
         let sep = reynolds(separation(&this_boid, &pos, &boid_data, behavior_settings.separation_distance, window), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.separation;
         let ali = reynolds(alignment(&this_boid, &pos, &boid_data, behavior_settings.neighbor_distance, window), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.alignment;
         let coh = reynolds(cohesion(&this_boid, &pos, &boid_data, behavior_settings.neighbor_distance, window), vel, move_settings.max_speed, move_settings.max_force) * behavior_settings.cohesion;
-        let edges = reynolds(avoid_edges(&pos, &window, 25.0), vel, move_settings.max_speed, move_settings.max_force) * 2.0;
-        let pointer = reynolds(avoid_pointer(&pos, &pointer_pos.0, &window), vel, move_settings.max_speed, move_settings.max_force) * 5.0;
-        acceleration.0 = sep + ali + coh + pointer;
+        //let edges = reynolds(avoid_edges(&pos, &window, 25.0), vel, move_settings.max_speed, move_settings.max_force) * 2.0;
+        //let pointer = reynolds(avoid_pointer(&pos, &pointer_pos.0, &window), vel, move_settings.max_speed, move_settings.max_force) * 5.0;
+        acceleration.0 = sep + ali + coh;// + pointer;
     }
 }
 
@@ -29,97 +29,101 @@ fn toroidal_delta(a: Vec3, b: Vec3, width: f32, height: f32) -> Vec3 {
     let mut dx = b.x - a.x;
     let mut dy = b.y - a.y;
 
-    if dx.abs() > width / 2.0 {
-        dx -= width * dx.signum();
+    if dx > width / 2.0 {
+        dx -= width;
+    } else if dx < -width / 2.0 {
+        dx += width;
     }
-    if dy.abs() > height / 2.0 {
-        dy -= height * dy.signum();
+
+    if dy > height / 2.0 {
+        dy -= height;
+    } else if dy < -height / 2.0 {
+        dy += height;
     }
 
     Vec3::new(dx, dy, 0.0)
 }
 
-fn avoid_pointer(
-    pos: &Vec3,
-    pointer_pos: &Vec2,
-    window: &Window,
-) -> Vec3 {
-    let avoid_radius = 100.0;
-    let max_force = 150.0;
 
-    let delta = toroidal_delta(*pos,pointer_pos.extend(0.0), window.width(), window.height());
-    let dist = delta.length();
+// fn avoid_pointer(
+//     pos: &Vec3,
+//     pointer_pos: &Vec2,
+//     window: &Window,
+// ) -> Vec3 {
+//     let avoid_radius = 100.0;
+//     let max_force = 150.0;
 
-    if dist < avoid_radius && dist > 0.0 {
-        let away = -delta.normalize();
-        let strength = ((avoid_radius - dist) / avoid_radius).powi(2); // smooth falloff
-        away * max_force * strength
-    } else {
-        Vec3::ZERO
-    }
-}
+//     let delta = toroidal_delta(*pos,pointer_pos.extend(0.0), window.width(), window.height());
+//     let dist = delta.length();
+
+//     if dist < avoid_radius && dist > 0.0 {
+//         let away = -delta.normalize();
+//         let strength = ((avoid_radius - dist) / avoid_radius).powi(2); // smooth falloff
+//         away * max_force * strength
+//     } else {
+//         Vec3::ZERO
+//     }
+// }
 
 
-fn avoid_edges(
-    pos: &Vec3,
-    window: &Window,
-    avoid_distance: f32,
-) -> Vec3 {
-    let mut force = Vec3::ZERO;
+// fn avoid_edges(
+//     pos: &Vec3,
+//     window: &Window,
+//     avoid_distance: f32,
+// ) -> Vec3 {
+//     let mut force = Vec3::ZERO;
 
-    let half_width = window.width() / 2.0;
-    let half_height = window.height() / 2.0;
+//     let half_width = window.width() / 2.0;
+//     let half_height = window.height() / 2.0;
 
-    // Left edge
-    let dist_left = pos.x + half_width;
-    if dist_left < avoid_distance {
-        force.x += 1.0 - dist_left / avoid_distance;
-    }
+//     // Left edge
+//     let dist_left = pos.x + half_width;
+//     if dist_left < avoid_distance {
+//         force.x += 1.0 - dist_left / avoid_distance;
+//     }
 
-    // Right edge
-    let dist_right = half_width - pos.x;
-    if dist_right < avoid_distance {
-        force.x -= 1.0 - dist_right / avoid_distance;
-    }
+//     // Right edge
+//     let dist_right = half_width - pos.x;
+//     if dist_right < avoid_distance {
+//         force.x -= 1.0 - dist_right / avoid_distance;
+//     }
 
-    // Bottom edge
-    let dist_bottom = pos.y + half_height;
-    if dist_bottom < avoid_distance {
-        force.y += 1.0 - dist_bottom / avoid_distance;
-    }
+//     // Bottom edge
+//     let dist_bottom = pos.y + half_height;
+//     if dist_bottom < avoid_distance {
+//         force.y += 1.0 - dist_bottom / avoid_distance;
+//     }
 
-    // Top edge
-    let dist_top = half_height - pos.y;
-    if dist_top < avoid_distance {
-        force.y -= 1.0 - dist_top / avoid_distance;
-    }
+//     // Top edge
+//     let dist_top = half_height - pos.y;
+//     if dist_top < avoid_distance {
+//         force.y -= 1.0 - dist_top / avoid_distance;
+//     }
 
-    force
-}
+//     force
+// }
 
 
 fn get_neighbors_in_grid(
     pos: &Vec3,
     grid: &SpatialHashGrid,
 ) -> Vec<(Entity, Vec3, Vec3)> {
-    let boid_cell = (
-        (pos.x / grid.cell_size).floor() as i32,
-        (pos.y / grid.cell_size).floor() as i32,
-    );
+    let boid_cell_x = (pos.x / grid.cell_size).floor() as i32;
+    let boid_cell_y = (pos.y / grid.cell_size).floor() as i32;
     let mut neighbors = Vec::new();
-    // Iterate over the surrounding 3x3 area (including the boid's cell itself)
-    for x in -1..=1 {
-        for y in -1..=1 {
-            let neighbor_cell = (boid_cell.0 + x, boid_cell.1 + y);
+
+    for dx in -1..=1 {
+        for dy in -1..=1 {
+            let wrapped_x = (boid_cell_x + dx + grid.grid_width) % grid.grid_width;
+            let wrapped_y = (boid_cell_y + dy + grid.grid_height) % grid.grid_height;
+            let neighbor_cell = (wrapped_x, wrapped_y);
 
             if let Some(boids_in_cell) = grid.cells.get(&neighbor_cell) {
-                for (entity, pos, vel) in boids_in_cell {
-                    // Add all boids in the neighboring cells
-                    neighbors.push((*entity, *pos, *vel));
-                }
+                neighbors.extend(boids_in_cell.iter().map(|(e, p, v)| (*e, *p, *v)));
             }
         }
     }
+
     neighbors
 }
 

@@ -4,6 +4,8 @@ use bevy::prelude::*;
 pub struct SpatialHashGrid {
     pub cells: std::collections::HashMap<(i32, i32), Vec<(Entity,Vec3,Vec3)>>,
     pub cell_size: f32,
+    pub grid_height: i32,
+    pub grid_width: i32,
 }
 
 #[derive(Resource)]
