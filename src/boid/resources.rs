@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 #[derive(Resource)]
 pub struct SpatialHashGrid {
-    pub cells: std::collections::HashMap<(i32, i32), Vec<Entity>>,
+    pub cells: std::collections::HashMap<(i32, i32), Vec<(Entity,Vec3,Vec3)>>,
     pub cell_size: f32,
 }
 
@@ -47,12 +47,16 @@ impl Default for MovementSettings {
 pub struct BoidSettings {
     pub num_boids: usize,
     pub boid_scale: f32,
+    pub screen_width: f32,
+    pub screen_height: f32,
 }
 impl Default for BoidSettings {
     fn default() -> Self {
         Self {
-            num_boids: 150,
+            num_boids: 500,
             boid_scale: 4.0,
+            screen_width: 1280.0,
+            screen_height: 720.0,
         }
     }
 }

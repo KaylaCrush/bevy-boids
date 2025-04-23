@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use super::{Acceleration, Boid, CursorWorldPosition, MovementSettings, Velocity};
+use super::{Acceleration, Boid, CursorWorldPosition, MovementSettings, SpatialHashGrid, Velocity};
 
 
 
@@ -24,8 +24,22 @@ pub fn update_cursor_position(
     }
 }
 
-
 // FIXED UPDATE SYSTEMS
+pub fn update_spatial_grid(
+    mut grid: ResMut<SpatialHashGrid>,
+    query: Query<(Entity, &Transform, &Velocity), With<Boid>>,
+) {
+    grid.cells.clear();
+    for (entity, transform, velocity) in query.iter() {
+        let pos = transform.translation.truncate();
+        let cell = (
+            (pos.x / grid.cell_size).floor() as i32,
+            (pos.y / grid.cell_size).floor() as i32,
+        );
+        grid.cells.entry(cell).or_default().push((entity, transform.translation, velocity.0));
+    }
+}
+
 pub fn apply_forces(
     mut query: Query<(&mut Velocity, &Acceleration)>,
     time: Res<Time>,
@@ -50,29 +64,20 @@ pub fn update_positions(
     }
 }
 
+fn wrap_position(pos: Vec3, width: f32, height: f32) -> Vec3 {
+    Vec3::new(
+        ((pos.x + width / 2.0) % width + width) % width - width / 2.0,
+        ((pos.y + height / 2.0) % height + height) % height - height / 2.0,
+        pos.z,
+    )
+}
+
 pub fn screen_wrap(
     mut query: Query<&mut Transform, With<Boid>>,
     windows: Query<&Window>,
 ){
     let window = windows.single();
-    let half_width = window.width() / 2.0;
-    let half_height = window.height() / 2.0;
-
     for mut transform in query.iter_mut() {
-        let mut pos = transform.translation;
-
-        if pos.x > half_width {
-            pos.x = -half_width;
-        } else if pos.x < -half_width {
-            pos.x = half_width;
-        }
-
-        if pos.y > half_height {
-            pos.y = -half_height;
-        } else if pos.y < -half_height {
-            pos.y = half_height;
-        }
-
-        transform.translation = pos;
+        transform.translation = wrap_position(transform.translation, window.width(), window.height());
     }
 }
