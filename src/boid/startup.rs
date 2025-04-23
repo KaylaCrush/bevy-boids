@@ -21,6 +21,8 @@ pub fn setup_grid(
     commands.insert_resource(SpatialHashGrid {
         cells: HashMap::new(),
         cell_size: behavior_settings.neighbor_distance,
+        grid_height: 0,
+        grid_width: 0,
     });
 }
 

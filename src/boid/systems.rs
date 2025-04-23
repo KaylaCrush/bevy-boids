@@ -28,7 +28,9 @@ pub fn update_cursor_position(
 pub fn update_spatial_grid(
     mut grid: ResMut<SpatialHashGrid>,
     query: Query<(Entity, &Transform, &Velocity), With<Boid>>,
+    windows: Query<&Window>,
 ) {
+    let window = windows.single();
     grid.cells.clear();
     for (entity, transform, velocity) in query.iter() {
         let pos = transform.translation.truncate();
@@ -38,6 +40,9 @@ pub fn update_spatial_grid(
         );
         grid.cells.entry(cell).or_default().push((entity, transform.translation, velocity.0));
     }
+    grid.grid_width = (window.width() / grid.cell_size).ceil() as i32;
+    grid.grid_height = (window.height() / grid.cell_size).ceil() as i32;
+
 }
 
 pub fn apply_forces(
