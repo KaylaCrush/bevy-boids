@@ -40,7 +40,7 @@ impl Default for MovementSettings {
     fn default() -> Self {
         Self {
             max_speed: 120.0,
-            max_force: 20.0,
+            max_force: 40.0,
         }
     }
 }

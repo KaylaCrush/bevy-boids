@@ -16,10 +16,9 @@ fn main() {
         .add_systems(Startup, (setup, setup_grid.after(setup), spawn_boids.after(setup)))
         .add_systems(Update, (update_cursor_position,))
         .add_systems(FixedUpdate, (
-            update_spatial_grid,
+            update_spatial_grid.after(screen_wrap),
             boid_behavior.after(update_spatial_grid),
             apply_forces.after(boid_behavior),
-
             screen_wrap,
             update_positions.after(screen_wrap),
         ))
