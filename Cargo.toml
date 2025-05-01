@@ -1,8 +1,10 @@
 [package]
-name = "boids"
+name = "boids_wgsl"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 bevy = "0.15.3"
+bevy_easy_compute = "0.15.0"
+bytemuck = "1.23.0"
 rand = "0.9.1"
