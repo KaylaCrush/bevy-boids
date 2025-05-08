@@ -9,7 +9,7 @@ use bevy_easy_compute::prelude::*;
 
 use worker::{Boid, BoidWorker};
 
-const NUM_BOIDS: u32 = 1_500;
+const NUM_BOIDS: u32 = 2_000;
 
 fn main(){
     App::new()
@@ -44,7 +44,8 @@ fn setup(
 }
 
 fn move_entities(
-    worker: ResMut<AppComputeWorker<BoidWorker>>,
+    mut worker: ResMut<AppComputeWorker<BoidWorker>>,
+    time: Res<Time>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     mut q_boid: Query<(&mut Transform, &BoidEntity), With<BoidEntity>>,
 ) {
@@ -54,6 +55,8 @@ fn move_entities(
 
     let window = q_window.single();
     let boids = worker.read_vec::<Boid>("boids_dst");
+    let delta_seconds = time.delta_secs();
+    worker.write("frame_delta", &delta_seconds);
 
     q_boid
         .par_iter_mut()

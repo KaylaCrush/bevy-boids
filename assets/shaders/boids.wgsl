@@ -3,6 +3,10 @@ struct Boid {
     vel: vec2<f32>,
 }
 
+struct FrameDelta {
+    delta_t: f32,
+}
+
 struct SimParams {
     max_speed: f32,
     max_force: f32,
@@ -41,6 +45,7 @@ fn reynolds(force: vec2<f32>, velocity: vec2<f32>) -> vec2<f32> {
 @group(0) @binding(0) var<uniform> params : SimParams;
 @group(0) @binding(1) var<storage, read> boidsSrc: array<Boid>;
 @group(0) @binding(2) var<storage, read_write> boidsDst: array<Boid>;
+@group(0) @binding(3) var<storage, read> frameDelta: FrameDelta;
 
 @compute
 @workgroup_size(64)
@@ -107,17 +112,17 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         aliSteer *= 1.0 / f32(velCount);
         aliSteer = reynolds(aliSteer, vVel);
     }
-
-    let steering = (sepSteer * params.sep_scale) + (cohSteer * params.coh_scale) + (aliSteer * params.ali_scale);
-    vVel += steering;
     let noise = vec2<f32>(
-        f32(global_invocation_id.x % 10u) * 0.00001,
-        f32(global_invocation_id.x % 7u) * 0.00001
-    );
-    vVel += noise;
+            f32(global_invocation_id.x % 10u) * 0.00001,
+            f32(global_invocation_id.x % 7u) * 0.00001
+        );
+    
+    let acceleration = (sepSteer * params.sep_scale) + (cohSteer * params.coh_scale) + (aliSteer * params.ali_scale);
+    //acceleration += noise;
+    vVel += acceleration * frameDelta.delta_t;
     vVel = normalize(vVel) * clamp(length(vVel), 0.0, params.max_speed);
 
-    vPos += vVel;
+    vPos += vVel * frameDelta.delta_t;
 
     // Wrap around boundary
     if vPos.x < -1.0 {

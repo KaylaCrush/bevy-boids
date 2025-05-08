@@ -22,6 +22,12 @@ struct Params{
 
 #[derive(ShaderType, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
+struct FrameDelta{
+    delta_t: f32,
+}
+
+#[derive(ShaderType, Pod, Zeroable, Clone, Copy)]
+#[repr(C)]
 pub struct Boid {
     pub pos: Vec2,
     pub vel: Vec2,
@@ -41,14 +47,14 @@ pub struct BoidWorker;
 impl ComputeWorker for BoidWorker {
     fn build(world: &mut World) -> AppComputeWorker<Self> {
         let params = Params {
-            max_speed: 0.02,      // slower boids → smoother behavior
-            max_force: 0.0003,     // weaker steering → less jitter
+            max_speed: 0.2,
+            max_force: 0.03,
             sep_dist: 0.025,
             coh_dist: 0.05,
             ali_dist: 0.05,
-            sep_scale: 1.5,        // strong separation
-            coh_scale: 1.0,        // weaker cohesion
-            ali_scale: 1.0,        // balanced alignment
+            sep_scale: 2.0,
+            coh_scale: 1.0,
+            ali_scale: 1.5,
         };
 
         let mut initial_boids_data = Vec::with_capacity(NUM_BOIDS as usize);
@@ -72,9 +78,10 @@ impl ComputeWorker for BoidWorker {
         .add_uniform("params", &params)
         .add_staging("boids_src", &initial_boids_data)
         .add_staging("boids_dst", &initial_boids_data)
+        .add_staging("frame_delta", &0.0)
         .add_pass::<BoidsShader>(
             [(NUM_BOIDS+63) / 64, 1, 1],
-            &["params","boids_src","boids_dst"],
+            &["params","boids_src","boids_dst","frame_delta"],
         )
         .add_swap("boids_src", "boids_dst")
         .build()
