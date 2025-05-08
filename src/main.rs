@@ -9,7 +9,7 @@ use bevy_easy_compute::prelude::*;
 
 use worker::{Boid, BoidWorker};
 
-const NUM_BOIDS: u32 = 2_000;
+const NUM_BOIDS: u32 = 1_500;
 
 fn main(){
     App::new()
@@ -23,7 +23,7 @@ fn main(){
 }
 
 #[derive(Component)]
-struct BoidEntity(pub usize);
+struct BoidEntity(usize);
 
 fn setup(
     mut commands:Commands,
@@ -65,6 +65,7 @@ fn move_entities(
 
             transform.translation = world_pos.extend(0.);
             transform.look_to(Vec3::Z, boids[boid_entity.0].vel.extend(0.));
-        })
+        }
+    )
 
 }
