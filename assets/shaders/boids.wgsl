@@ -4,7 +4,8 @@ struct Boid {
 }
 
 struct SimParams {
-    deltaT: f32,
+    max_speed: f32,
+    max_force: f32,
     sep_dist: f32,
     coh_dist: f32,
     ali_dist: f32,
@@ -25,6 +26,18 @@ fn wrapped_position(pos1: vec2<f32>, pos2: vec2<f32>) -> vec2<f32> {
     return wrap_pos;
 }
 
+fn reynolds(force: vec2<f32>, velocity: vec2<f32>) -> vec2<f32> {
+    if length(force) > 0.0 {
+        let desired = normalize(force) * params.max_speed;
+        let steer = desired - velocity;
+        if length(steer) > params.max_force {
+            return normalize(steer) * params.max_force;
+        }
+        return steer;
+    }
+    return force;
+}
+
 @group(0) @binding(0) var<uniform> params : SimParams;
 @group(0) @binding(1) var<storage, read> boidsSrc: array<Boid>;
 @group(0) @binding(2) var<storage, read_write> boidsDst: array<Boid>;
@@ -42,10 +55,12 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     var vVel: vec2<f32> = boidsDst[index].vel;
 
     var centerMass: vec2<f32> = vec2<f32>(0.0, 0.0);
-    var centerVel: vec2<f32> = vec2<f32>(0.0, 0.0);
-    var sepVel: vec2<f32> = vec2<f32>(0.0, 0.0);
+    var aliSteer: vec2<f32> = vec2<f32>(0.0, 0.0);
+    var sepSteer: vec2<f32> = vec2<f32>(0.0, 0.0);
+    var cohSteer: vec2<f32> = vec2<f32>(0.0, 0.0);
     var massCount: i32 = 0;
     var velCount: i32 = 0;
+    var sepCount: i32 = 0;
 
     var i: u32 = 0u;
     loop {
@@ -58,16 +73,18 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
 
         let pos = wrapped_position(vPos, boidsSrc[i].pos);
         let vel = boidsSrc[i].vel;
+        let dist = distance(pos, vPos);
 
-        if distance(pos, vPos) < params.sep_dist {
-            sepVel -= pos - vPos;
+        if dist < params.sep_dist {
+            sepSteer += normalize(vPos-pos) / dist;
+            sepCount += 1;
         }
-        if distance(pos, vPos) < params.coh_dist {
+        if dist < params.coh_dist {
             centerMass += pos;
             massCount += 1;
         }
-        if distance(pos, vPos) < params.ali_dist {
-            centerVel += vel;
+        if dist < params.ali_dist {
+            aliSteer += vel;
             velCount += 1;
         }
 
@@ -76,18 +93,31 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         }
     }
 
+    if sepCount > 0 {
+        sepSteer = sepSteer * (1.0/f32(sepCount));
+        sepSteer = reynolds(sepSteer, vVel);
+    }
+
     if massCount > 0 {
-        centerMass = centerMass * (1.0 / f32(massCount)) - vPos;
+        cohSteer = normalize(centerMass * (1.0 / f32(massCount)) - vPos) * params.max_speed;
+        cohSteer = reynolds(cohSteer, vVel);
+        
     }
     if velCount > 0 {
-        centerVel *= 1.0 / f32(velCount);
+        aliSteer *= 1.0 / f32(velCount);
+        aliSteer = reynolds(aliSteer, vVel);
     }
 
-    vVel = vVel + (sepVel * params.sep_scale) + (centerMass * params.coh_scale) + (centerVel * params.ali_scale);
+    let steering = (sepSteer * params.sep_scale) + (cohSteer * params.coh_scale) + (aliSteer * params.ali_scale);
+    vVel += steering;
+    let noise = vec2<f32>(
+        f32(global_invocation_id.x % 10u) * 0.00001,
+        f32(global_invocation_id.x % 7u) * 0.00001
+    );
+    vVel += noise;
+    vVel = normalize(vVel) * clamp(length(vVel), 0.0, params.max_speed);
 
-    vVel = normalize(vVel) * clamp(length(vVel), 0.0, 0.1);
-
-    vPos += vVel * params.deltaT;
+    vPos += vVel;
 
     // Wrap around boundary
     if vPos.x < -1.0 {
