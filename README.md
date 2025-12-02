@@ -46,16 +46,6 @@ Each frame consists of:
 
 This structure avoids CPU bottlenecks and scales well for high agent counts.
 
-### Data Layout
-
-Each agent stores:
-
-* `position: vec2<f32>`
-* `velocity: vec2<f32>`
-* Additional parameters as needed (e.g., speed limits)
-
-All agent data resides in GPU-accessible buffers to minimize CPU-GPU synchronization.
-
 ### Performance Notes
 
 * Neighbor checks use squared distance to avoid unnecessary square roots
