@@ -70,24 +70,12 @@ Requirements:
 
 * Rust
 * Cargo
-* Bevy (version you used)
 
 Run with:
 
 ```bash
 cargo run --release
 ```
-
----
-
-## Possible Extensions
-
-* Spatial partitioning (uniform grid or quad-tree)
-* Multiple boid species with different parameters
-* Predator–prey dynamics
-* 3D flocking
-* Obstacle avoidance
-* Integration with other ecosystem simulations
 
 ---
 
